@@ -3,7 +3,7 @@ module github.com/webcore-go/lib-mongo
 go 1.24.0
 
 require (
-	github.com/semanggilab/webcore-go v0.1.2
+	github.com/webcore-go/webcore v0.0.1
 	go.mongodb.org/mongo-driver v1.17.6
 )
 

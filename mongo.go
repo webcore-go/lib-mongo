@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/semanggilab/webcore-go/app/config"
-	"github.com/semanggilab/webcore-go/app/loader"
-	"github.com/semanggilab/webcore-go/app/logger"
+	"github.com/webcore-go/webcore/app/config"
+	"github.com/webcore-go/webcore/app/loader"
+	"github.com/webcore-go/webcore/app/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

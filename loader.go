@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"github.com/semanggilab/webcore-go/app/loader"
+	"github.com/webcore-go/webcore/app/loader"
 )
 
 type MongoLoader struct {
