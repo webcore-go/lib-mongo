@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"reflect"
 	"strings"
 
 	"github.com/webcore-go/webcore/app/config"
@@ -189,19 +188,19 @@ func (m *MongoDatabase) RestartWatch(ctx context.Context, table string, changeSt
 	return changeStream, err
 }
 
-func (m *MongoDatabase) Count(ctx context.Context, table string, filter loader.DbMap) (int64, error) {
+func (m *MongoDatabase) Count(ctx context.Context, table string, filter []loader.DbExpression) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 
 	return collection.CountDocuments(ctx, mfilter)
 }
 
-func (m *MongoDatabase) Find(ctx context.Context, table string, column []string, filter loader.DbMap, sort map[string]int, limit int64, skip int64) ([]loader.DbMap, error) {
+func (m *MongoDatabase) Find(ctx context.Context, table string, column []string, filter []loader.DbExpression, sort map[string]int, limit int64, skip int64) ([]loader.DbMap, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
@@ -243,7 +242,7 @@ func (m *MongoDatabase) Find(ctx context.Context, table string, column []string,
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 	cursor, err := collection.Find(ctx, mfilter, findOptions)
 	if err != nil {
 		return nil, err
@@ -257,7 +256,7 @@ func (m *MongoDatabase) Find(ctx context.Context, table string, column []string,
 	return results, nil
 }
 
-func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, column []string, filter loader.DbMap, sort map[string]int) error {
+func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, column []string, filter []loader.DbExpression, sort map[string]int) error {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return fmt.Errorf("collection %s not found", table)
@@ -291,7 +290,7 @@ func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, c
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 
 	err := collection.FindOne(ctx, mfilter, findOptions).Decode(result)
 	if err != nil {
@@ -313,14 +312,14 @@ func (m *MongoDatabase) InsertOne(ctx context.Context, table string, data any) (
 	return nil, nil
 }
 
-func (m *MongoDatabase) Update(ctx context.Context, table string, filter loader.DbMap, data any) (int64, error) {
+func (m *MongoDatabase) Update(ctx context.Context, table string, filter []loader.DbExpression, data any) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 
 	result, err := collection.UpdateMany(ctx, mfilter, bson.M{"$set": data})
 	if err != nil {
@@ -329,14 +328,14 @@ func (m *MongoDatabase) Update(ctx context.Context, table string, filter loader.
 	return result.MatchedCount, nil
 }
 
-func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter loader.DbMap, data any) (int64, error) {
+func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter []loader.DbExpression, data any) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 
 	result, err := collection.UpdateOne(ctx, mfilter, bson.M{"$set": data})
 	if err != nil {
@@ -345,14 +344,14 @@ func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter load
 	return result.MatchedCount, nil
 }
 
-func (m *MongoDatabase) Delete(ctx context.Context, table string, filter loader.DbMap) (any, error) {
+func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []loader.DbExpression) (any, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 	result, err := collection.DeleteMany(ctx, mfilter)
 	if err != nil {
 		return nil, err
@@ -360,14 +359,14 @@ func (m *MongoDatabase) Delete(ctx context.Context, table string, filter loader.
 	return result, nil
 }
 
-func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter loader.DbMap) (any, error) {
+func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter []loader.DbExpression) (any, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
-	copyToBsonMap(filter, &mfilter)
+	buildWhereClause(filter, &mfilter)
 	result, err := collection.DeleteOne(ctx, mfilter)
 	if err != nil {
 		return nil, err
@@ -383,33 +382,153 @@ func (m *MongoDatabase) GetCollection(collectionName string) *mongo.Collection {
 	return collection
 }
 
-func copyToBsonMap(src loader.DbMap, dst *bson.M) any {
-	for k, v := range src {
-		vType := reflect.TypeOf(v)
-		switch vType.Kind() {
-		case reflect.Map:
-			m := bson.M{}
-			copyToBsonMap(v.(loader.DbMap), &m)
-			(*dst)[k] = m
-		case reflect.Slice:
-			arr := reflect.ValueOf(v)
-			result := make([]any, arr.Len())
-			for i := 0; i < arr.Len(); i++ {
-				item := arr.Index(i).Interface()
-				iType := reflect.TypeOf(item)
-				if iType.Kind() == reflect.Map {
-					m := bson.M{}
-					copyToBsonMap(item.(loader.DbMap), &m)
-					result[i] = m
-				} else {
-					result[i] = item
-				}
-			}
-			(*dst)[k] = result
-		default:
-			(*dst)[k] = v
-		}
+func buildWhereClause(scr []loader.DbExpression, dst *bson.M) {
+	if len(scr) == 0 {
+		return
 	}
 
-	return dst
+	for _, value := range scr {
+		if value.Op != "" {
+			switch value.Op {
+			case "IN":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$in": value.Args}
+				}
+			case "NOT IN":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$nin": value.Args}
+				}
+			case "ANY =":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$eq": value.Args[0]}}
+				}
+			case "ANY !=":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$ne": value.Args[0]}}
+				}
+			case "ANY >":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$gt": value.Args[0]}}
+				}
+			case "ANY >=":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$gte": value.Args[0]}}
+				}
+			case "ANY <":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$lt": value.Args[0]}}
+				}
+			case "ANY <=":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$lte": value.Args[0]}}
+				}
+			case "ANY":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$in": value.Args}
+				}
+			case "NOT ANY":
+				if len(value.Args) > 0 {
+					(*dst)[value.Expr] = bson.M{"$nin": value.Args}
+				}
+			case "ANY LIKE":
+				if len(value.Args) > 0 {
+					pattern := value.Args[0].(string)
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$regex": pattern}}
+				}
+			case "ANY ILIKE":
+				if len(value.Args) > 0 {
+					pattern := value.Args[0].(string)
+					(*dst)[value.Expr] = bson.M{"$elemMatch": bson.M{"$regex": pattern, "$options": "i"}}
+				}
+			case "LIKE":
+				if len(value.Args) > 0 {
+					pattern := value.Args[0].(string)
+					(*dst)[value.Expr] = bson.M{"$regex": pattern}
+				}
+			case "ILIKE":
+				if len(value.Args) > 0 {
+					pattern := value.Args[0].(string)
+					(*dst)[value.Expr] = bson.M{"$regex": pattern, "$options": "i"}
+				}
+			case "GROUP_OR":
+				ln := len(value.Args)
+				if ln > 0 {
+					conditions := make([]bson.M, ln)
+					for i, arg := range value.Args {
+						if cond, ok := arg.(loader.DbExpression); ok {
+							subFilter := bson.M{}
+							buildWhereClause([]loader.DbExpression{cond}, &subFilter)
+							conditions[i] = subFilter
+						}
+					}
+					(*dst)["$or"] = conditions
+				}
+			case "GROUP_AND":
+				ln := len(value.Args)
+				if ln > 0 {
+					conditions := make([]bson.M, ln)
+					for i, arg := range value.Args {
+						if cond, ok := arg.(loader.DbExpression); ok {
+							subFilter := bson.M{}
+							buildWhereClause([]loader.DbExpression{cond}, &subFilter)
+							conditions[i] = subFilter
+						}
+					}
+					(*dst)["$and"] = conditions
+				}
+			default:
+				// Handle comparison operators (=, !=, >, >=, <, <=)
+				if len(value.Args) > 0 {
+					switch value.Args[0] {
+					case nil:
+						(*dst)[value.Expr] = bson.M{"$exists": false}
+					case true:
+						(*dst)[value.Expr] = true
+					case false:
+						(*dst)[value.Expr] = false
+					default:
+						switch value.Op {
+						case "=":
+							(*dst)[value.Expr] = value.Args[0]
+						case "!=":
+							(*dst)[value.Expr] = bson.M{"$ne": value.Args[0]}
+						case ">":
+							(*dst)[value.Expr] = bson.M{"$gt": value.Args[0]}
+						case ">=":
+							(*dst)[value.Expr] = bson.M{"$gte": value.Args[0]}
+						case "<":
+							(*dst)[value.Expr] = bson.M{"$lt": value.Args[0]}
+						case "<=":
+							(*dst)[value.Expr] = bson.M{"$lte": value.Args[0]}
+						default:
+							// Default to equality
+							(*dst)[value.Expr] = value.Args[0]
+						}
+					}
+				}
+			}
+		} else {
+			// Handle expressions without operator (default to equality)
+			if len(value.Args) > 0 {
+				switch value.Args[0] {
+				case nil:
+					(*dst)[value.Expr] = bson.M{"$exists": false}
+				case true:
+					(*dst)[value.Expr] = true
+				case false:
+					(*dst)[value.Expr] = false
+				default:
+					// Check if Expr contains a placeholder
+					if strings.Contains(value.Expr, "?") {
+						// For raw expressions, we can't easily convert to MongoDB
+						// This is a limitation - raw SQL expressions won't work with MongoDB
+						logger.Warn("Raw SQL expressions are not supported in MongoDB", "expr", value.Expr)
+					} else {
+						// Default to equality
+						(*dst)[value.Expr] = value.Args[0]
+					}
+				}
+			}
+		}
+	}
 }
