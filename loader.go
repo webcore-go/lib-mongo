@@ -1,8 +1,6 @@
 package mongo
 
-import (
-	"github.com/webcore-go/webcore/app/loader"
-)
+import "github.com/webcore-go/webcore/port"
 
 type MongoLoader struct {
 	name string
@@ -16,7 +14,7 @@ func (a *MongoLoader) Name() string {
 	return a.name
 }
 
-func (l *MongoLoader) Init(args ...any) (loader.Library, error) {
+func (l *MongoLoader) Init(args ...any) (port.Library, error) {
 	// config := args[1].(config.DatabaseConfig)
 
 	db := &MongoDatabase{}

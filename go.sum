@@ -211,6 +211,8 @@ github.com/webcore-go/webcore v0.0.1 h1:JJs4yn6CaC3jv3VotgGuSARjDq82qJczoCcivcxE
 github.com/webcore-go/webcore v0.0.1/go.mod h1:3ZA60tdmVzPLCqYg8O8BfPvg0CYMSHDYFDPgor7n/Us=
 github.com/webcore-go/webcore v0.0.5 h1:hHkUDK3fiQ+p7k1yuzioaTGQhdRck9jw5z4nIRzA1so=
 github.com/webcore-go/webcore v0.0.5/go.mod h1:mvustfu1Oo11807qtu20zsscDF1Hsvv5rnBLVZjIxM0=
+github.com/webcore-go/webcore v0.0.6 h1:jfZPRuXxVTJDMdEo7ANG4Fayau/Qw/d2xExCU7m4gns=
+github.com/webcore-go/webcore v0.0.6/go.mod h1:mvustfu1Oo11807qtu20zsscDF1Hsvv5rnBLVZjIxM0=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=

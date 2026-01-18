@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/webcore-go/webcore/app/config"
-	"github.com/webcore-go/webcore/app/loader"
-	"github.com/webcore-go/webcore/app/logger"
+	"github.com/webcore-go/webcore/infra/config"
+	"github.com/webcore-go/webcore/infra/logger"
+	"github.com/webcore-go/webcore/port"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -16,7 +16,7 @@ import (
 )
 
 type MongoDB interface {
-	loader.IDatabase
+	port.IDatabase
 }
 
 // MongoDatabase implements Database for MongoDB
@@ -188,7 +188,7 @@ func (m *MongoDatabase) RestartWatch(ctx context.Context, table string, changeSt
 	return changeStream, err
 }
 
-func (m *MongoDatabase) Count(ctx context.Context, table string, filter []loader.DbExpression) (int64, error) {
+func (m *MongoDatabase) Count(ctx context.Context, table string, filter []port.DbExpression) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
@@ -200,7 +200,7 @@ func (m *MongoDatabase) Count(ctx context.Context, table string, filter []loader
 	return collection.CountDocuments(ctx, mfilter)
 }
 
-func (m *MongoDatabase) Find(ctx context.Context, table string, column []string, filter []loader.DbExpression, sort map[string]int, limit int64, skip int64) ([]loader.DbMap, error) {
+func (m *MongoDatabase) Find(ctx context.Context, table string, column []string, filter []port.DbExpression, sort map[string]int, limit int64, skip int64) ([]port.DbMap, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
@@ -249,14 +249,14 @@ func (m *MongoDatabase) Find(ctx context.Context, table string, column []string,
 	}
 	defer cursor.Close(ctx)
 
-	var results []loader.DbMap
+	var results []port.DbMap
 	if err = cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
 	return results, nil
 }
 
-func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, column []string, filter []loader.DbExpression, sort map[string]int) error {
+func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, column []string, filter []port.DbExpression, sort map[string]int) error {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return fmt.Errorf("collection %s not found", table)
@@ -312,7 +312,7 @@ func (m *MongoDatabase) InsertOne(ctx context.Context, table string, data any) (
 	return nil, nil
 }
 
-func (m *MongoDatabase) Update(ctx context.Context, table string, filter []loader.DbExpression, data any) (int64, error) {
+func (m *MongoDatabase) Update(ctx context.Context, table string, filter []port.DbExpression, data any) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
@@ -328,7 +328,7 @@ func (m *MongoDatabase) Update(ctx context.Context, table string, filter []loade
 	return result.MatchedCount, nil
 }
 
-func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter []loader.DbExpression, data any) (int64, error) {
+func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter []port.DbExpression, data any) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return 0, fmt.Errorf("collection %s not found", table)
@@ -344,7 +344,7 @@ func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter []lo
 	return result.MatchedCount, nil
 }
 
-func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []loader.DbExpression) (any, error) {
+func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []port.DbExpression) (any, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
@@ -359,7 +359,7 @@ func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []loade
 	return result, nil
 }
 
-func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter []loader.DbExpression) (any, error) {
+func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter []port.DbExpression) (any, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
 		return nil, fmt.Errorf("collection %s not found", table)
@@ -382,7 +382,7 @@ func (m *MongoDatabase) GetCollection(collectionName string) *mongo.Collection {
 	return collection
 }
 
-func buildWhereClause(scr []loader.DbExpression, dst *bson.M) {
+func buildWhereClause(scr []port.DbExpression, dst *bson.M) {
 	if len(scr) == 0 {
 		return
 	}
@@ -455,9 +455,9 @@ func buildWhereClause(scr []loader.DbExpression, dst *bson.M) {
 				if ln > 0 {
 					conditions := make([]bson.M, ln)
 					for i, arg := range value.Args {
-						if cond, ok := arg.(loader.DbExpression); ok {
+						if cond, ok := arg.(port.DbExpression); ok {
 							subFilter := bson.M{}
-							buildWhereClause([]loader.DbExpression{cond}, &subFilter)
+							buildWhereClause([]port.DbExpression{cond}, &subFilter)
 							conditions[i] = subFilter
 						}
 					}
@@ -468,9 +468,9 @@ func buildWhereClause(scr []loader.DbExpression, dst *bson.M) {
 				if ln > 0 {
 					conditions := make([]bson.M, ln)
 					for i, arg := range value.Args {
-						if cond, ok := arg.(loader.DbExpression); ok {
+						if cond, ok := arg.(port.DbExpression); ok {
 							subFilter := bson.M{}
-							buildWhereClause([]loader.DbExpression{cond}, &subFilter)
+							buildWhereClause([]port.DbExpression{cond}, &subFilter)
 							conditions[i] = subFilter
 						}
 					}
