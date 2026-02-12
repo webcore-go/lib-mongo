@@ -62,6 +62,19 @@ func (m *MongoDatabase) Connect() error {
 	}
 
 	driver := m.config.Driver
+	scheme := m.config.Scheme
+	if scheme == "" {
+		scheme = driver
+	}
+
+	port := m.config.Port
+	srv := false
+	if strings.Contains(scheme, "+srv") {
+		srv = true
+		if port == 27017 {
+			port = 0
+		}
+	}
 
 	// Build connection string with authentication
 	authSource := m.config.Name
@@ -70,23 +83,33 @@ func (m *MongoDatabase) Connect() error {
 	}
 
 	var host string
-	if strings.Contains(m.config.Host, ",") || m.config.Port == 0 {
+	if strings.Contains(m.config.Host, ",") || port == 0 {
 		host = m.config.Host
 	} else {
-		host = fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
+		host = fmt.Sprintf("%s:%d", m.config.Host, port)
 	}
 
 	var connectionString string
 	if m.config.User != "" && m.config.Password != "" {
-		connectionString = fmt.Sprintf("%s://%s:%s@%s/",
-			driver,
-			m.config.User,
-			m.config.Password,
-			host,
-		)
+		if srv {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+				m.config.Name,
+			)
+		} else {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+			)
+		}
 	} else {
 		connectionString = fmt.Sprintf("%s://%s/",
-			driver,
+			scheme,
 			host,
 		)
 	}
