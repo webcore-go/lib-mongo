@@ -223,10 +223,10 @@ func (m *MongoDatabase) Count(ctx context.Context, table string, filter []port.D
 	return collection.CountDocuments(ctx, mfilter)
 }
 
-func (m *MongoDatabase) Find(ctx context.Context, table string, column []string, filter []port.DbExpression, sort map[string]int, limit int64, skip int64) ([]port.DbMap, error) {
+func (m *MongoDatabase) Find(ctx context.Context, results any, table string, column []string, filter []port.DbExpression, sort map[string]int, limit int64, skip int64) error {
 	collection := m.GetCollection(table)
 	if collection == nil {
-		return nil, fmt.Errorf("collection %s not found", table)
+		return fmt.Errorf("collection %s not found", table)
 	}
 
 	// Create projection if columns are specified
@@ -268,15 +268,15 @@ func (m *MongoDatabase) Find(ctx context.Context, table string, column []string,
 	buildWhereClause(filter, &mfilter)
 	cursor, err := collection.Find(ctx, mfilter, findOptions)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer cursor.Close(ctx)
 
-	var results []port.DbMap
+	// var results []port.DbMap
 	if err = cursor.All(ctx, &results); err != nil {
-		return nil, err
+		return err
 	}
-	return results, nil
+	return nil
 }
 
 func (m *MongoDatabase) FindOne(ctx context.Context, result any, table string, column []string, filter []port.DbExpression, sort map[string]int) error {
@@ -367,34 +367,34 @@ func (m *MongoDatabase) UpdateOne(ctx context.Context, table string, filter []po
 	return result.MatchedCount, nil
 }
 
-func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []port.DbExpression) (any, error) {
+func (m *MongoDatabase) Delete(ctx context.Context, table string, filter []port.DbExpression) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
-		return nil, fmt.Errorf("collection %s not found", table)
+		return 0, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
 	buildWhereClause(filter, &mfilter)
 	result, err := collection.DeleteMany(ctx, mfilter)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return result, nil
+	return result.DeletedCount, nil
 }
 
-func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter []port.DbExpression) (any, error) {
+func (m *MongoDatabase) DeleteOne(ctx context.Context, table string, filter []port.DbExpression) (int64, error) {
 	collection := m.GetCollection(table)
 	if collection == nil {
-		return nil, fmt.Errorf("collection %s not found", table)
+		return 0, fmt.Errorf("collection %s not found", table)
 	}
 
 	mfilter := bson.M{}
 	buildWhereClause(filter, &mfilter)
 	result, err := collection.DeleteOne(ctx, mfilter)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	return result, nil
+	return result.DeletedCount, nil
 }
 
 func (m *MongoDatabase) GetCollection(collectionName string) *mongo.Collection {
