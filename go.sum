@@ -58,8 +58,8 @@ github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6Kllzaw
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.69.0 h1:fNLLESD2SooWeh2cidsuFtOcrEi4uB4m1mPrkJMZyVI=
 github.com/valyala/fasthttp v1.69.0/go.mod h1:4wA4PfAraPlAsJ5jMSqCE2ug5tqUPwKXxVj8oNECGcw=
-github.com/webcore-go/webcore v0.0.10 h1:qdoAP1Abed4O14c0LK6HFvaYbTCTKwMtLiP0dhfCN2o=
-github.com/webcore-go/webcore v0.0.10/go.mod h1:wqSqBMQ3SE96NJCrz62mpqA8qVt9IQyC/jwYhZk15CY=
+github.com/webcore-go/webcore v0.0.11 h1:wGKaAgW0G6E81u7bj2t2kqNsCrOPrM7Ae3nj0X9wbIA=
+github.com/webcore-go/webcore v0.0.11/go.mod h1:abA6nk+8WtrdJXJfYbPY2iDNcmBb+OTCjzOxmOt7TOk=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=
