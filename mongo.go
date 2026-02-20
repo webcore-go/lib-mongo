@@ -3,9 +3,13 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/webcore-go/webcore/infra/config"
 	"github.com/webcore-go/webcore/infra/logger"
 	"github.com/webcore-go/webcore/port"
@@ -403,6 +407,184 @@ func (m *MongoDatabase) GetCollection(collectionName string) *mongo.Collection {
 	}
 	collection := m.conn.Database(m.config.Name).Collection(collectionName)
 	return collection
+}
+
+// StartMigration runs MongoDB migrations using golang-migrate
+func (m *MongoDatabase) StartMigration(service string, command string, dir string, args []string) error {
+	if m.conn == nil {
+		return fmt.Errorf("database not connected")
+	}
+
+	// Set the collection name for migration logs based on service
+	var collectionName string
+	if service != "" {
+		collectionName = "__migration_" + service + "_logs"
+	} else {
+		collectionName = "__migration_webcore_logs"
+	}
+
+	// Build MongoDB connection string with migration collection parameter
+	driver := m.config.Driver
+	scheme := m.config.Scheme
+	if scheme == "" {
+		scheme = driver
+	}
+
+	port := m.config.Port
+	srv := false
+	if strings.Contains(scheme, "+srv") {
+		srv = true
+		if port == 27017 {
+			port = 0
+		}
+	}
+
+	authSource := m.config.Name
+	if authSource == "" {
+		authSource = "admin"
+	}
+
+	var host string
+	if strings.Contains(m.config.Host, ",") || port == 0 {
+		host = m.config.Host
+	} else {
+		host = fmt.Sprintf("%s:%d", m.config.Host, port)
+	}
+
+	var connectionString string
+	if m.config.User != "" && m.config.Password != "" {
+		if srv {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+				m.config.Name,
+			)
+		} else {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+				m.config.Name,
+			)
+		}
+	} else {
+		connectionString = fmt.Sprintf("%s://%s/%s",
+			scheme,
+			host,
+			m.config.Name,
+		)
+	}
+
+	// Add migration collection parameter
+	connectionString += fmt.Sprintf("?x-migrations-collection=%s", collectionName)
+
+	// Create migration instance
+	migrations, err := migrate.New(
+		"file://"+dir,
+		connectionString,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create migration instance: %v", err)
+		return err
+	}
+	defer migrations.Close()
+
+	// Execute the migration command
+	switch command {
+	case "up":
+		if err := migrations.Up(); err != nil && err != migrate.ErrNoChange {
+			log.Fatalf("Failed to run migrations up: %v", err)
+			return err
+		}
+		if err == migrate.ErrNoChange {
+			logger.Info("No new migrations to apply")
+		} else {
+			logger.Info("MongoDB migrations up completed successfully")
+		}
+	case "down":
+		// Parse version if provided
+		var version uint
+		if len(args) > 0 {
+			_, err := fmt.Sscanf(args[0], "%d", &version)
+			if err != nil {
+				log.Fatalf("Invalid version number: %v", err)
+				return err
+			}
+			if err := migrations.Migrate(version); err != nil {
+				log.Fatalf("Failed to run migrations down to version %d: %v", version, err)
+				return err
+			}
+			logger.Info(fmt.Sprintf("MongoDB migrations down to version %d completed successfully", version))
+		} else {
+			// Rollback one migration
+			if err := migrations.Steps(-1); err != nil && err != migrate.ErrNoChange {
+				log.Fatalf("Failed to run migrations down: %v", err)
+				return err
+			}
+			if err == migrate.ErrNoChange {
+				logger.Info("No migrations to rollback")
+			} else {
+				logger.Info("MongoDB migrations down (one step) completed successfully")
+			}
+		}
+	case "status":
+		// Get migration version
+		version, dirty, err := migrations.Version()
+		if err != nil && err != migrate.ErrNilVersion {
+			log.Fatalf("Failed to get migration status: %v", err)
+			return err
+		}
+
+		fmt.Println("\nMigration Status:")
+		fmt.Println("================")
+		if err == migrate.ErrNilVersion {
+			fmt.Println("No migrations have been applied yet")
+		} else {
+			fmt.Printf("Current version: %d\n", version)
+			if dirty {
+				fmt.Println("Status: DIRTY (migration failed)")
+			} else {
+				fmt.Println("Status: OK")
+			}
+		}
+		fmt.Println()
+	case "version":
+		version, dirty, err := migrations.Version()
+		if err != nil && err != migrate.ErrNilVersion {
+			log.Fatalf("Failed to get migration version: %v", err)
+			return err
+		}
+
+		if err == migrate.ErrNilVersion {
+			fmt.Println("No migrations have been applied yet")
+		} else {
+			fmt.Printf("Current version: %d (dirty: %v)\n", version, dirty)
+		}
+	case "force":
+		if len(args) < 1 {
+			log.Fatal("Usage: force <version>")
+			return fmt.Errorf("version is required")
+		}
+		var version int
+		_, err := fmt.Sscanf(args[0], "%d", &version)
+		if err != nil {
+			log.Fatalf("Invalid version number: %v", err)
+			return err
+		}
+		if err := migrations.Force(version); err != nil {
+			log.Fatalf("Failed to force migration version: %v", err)
+			return err
+		}
+		logger.Info(fmt.Sprintf("Migration version forced to %d", version))
+	default:
+		log.Fatalf("Unknown migration command: %s. Available commands: up, down, status, version, force", command)
+		return fmt.Errorf("unknown migration command: %s", command)
+	}
+
+	return nil
 }
 
 func buildWhereClause(scr []port.DbExpression, dst *bson.M) {
