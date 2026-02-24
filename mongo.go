@@ -472,6 +472,10 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 }
 
 func (m *MongoDatabase) buildConnectionString() string {
+	if m.config.Uri != "" {
+		return m.config.Uri
+	}
+
 	driver := m.config.Driver
 	scheme := m.config.Scheme
 	if scheme == "" {

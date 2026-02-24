@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.18.3
-	github.com/webcore-go/webcore v0.0.14
+	github.com/webcore-go/webcore v0.0.15
 	go.mongodb.org/mongo-driver v1.17.9
 )
 
