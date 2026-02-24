@@ -65,69 +65,7 @@ func (m *MongoDatabase) Connect() error {
 		return nil
 	}
 
-	driver := m.config.Driver
-	scheme := m.config.Scheme
-	if scheme == "" {
-		scheme = driver
-	}
-
-	port := m.config.Port
-	srv := false
-	if strings.Contains(scheme, "+srv") {
-		srv = true
-		if port == 27017 {
-			port = 0
-		}
-	}
-
-	// Build connection string with authentication
-	authSource := m.config.Name
-	if authSource == "" {
-		authSource = "admin"
-	}
-
-	var host string
-	if strings.Contains(m.config.Host, ",") || port == 0 {
-		host = m.config.Host
-	} else {
-		host = fmt.Sprintf("%s:%d", m.config.Host, port)
-	}
-
-	var connectionString string
-	if m.config.User != "" && m.config.Password != "" {
-		if srv {
-			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
-				scheme,
-				m.config.User,
-				m.config.Password,
-				host,
-				m.config.Name,
-			)
-		} else {
-			connectionString = fmt.Sprintf("%s://%s:%s@%s/",
-				scheme,
-				m.config.User,
-				m.config.Password,
-				host,
-			)
-		}
-	} else {
-		connectionString = fmt.Sprintf("%s://%s/",
-			scheme,
-			host,
-		)
-	}
-
-	if len(m.config.Attributes) > 0 {
-		queryParams := []string{}
-		for key, value := range m.config.Attributes {
-			queryParams = append(queryParams, fmt.Sprintf("%s=%s", key, url.QueryEscape(value)))
-		}
-		if len(queryParams) > 0 {
-			connectionString += "?" + strings.Join(queryParams, "&")
-		}
-	}
-
+	connectionString := m.buildConnectionString()
 	logger.Debug("Attempting to connect to MongoDB with", "URI", connectionString)
 
 	// Create client options
@@ -409,8 +347,7 @@ func (m *MongoDatabase) GetCollection(collectionName string) *mongo.Collection {
 	return collection
 }
 
-// StartMigration runs MongoDB migrations using golang-migrate
-func (m *MongoDatabase) StartMigration(service string, command string, dir string, args []string) error {
+func (m *MongoDatabase) StartMigration(ctx context.Context, service string, command string, dir string, args []string) error {
 	if m.conn == nil {
 		return fmt.Errorf("database not connected")
 	}
@@ -423,60 +360,7 @@ func (m *MongoDatabase) StartMigration(service string, command string, dir strin
 		collectionName = "__migration_webcore_logs"
 	}
 
-	// Build MongoDB connection string with migration collection parameter
-	driver := m.config.Driver
-	scheme := m.config.Scheme
-	if scheme == "" {
-		scheme = driver
-	}
-
-	port := m.config.Port
-	srv := false
-	if strings.Contains(scheme, "+srv") {
-		srv = true
-		if port == 27017 {
-			port = 0
-		}
-	}
-
-	authSource := m.config.Name
-	if authSource == "" {
-		authSource = "admin"
-	}
-
-	var host string
-	if strings.Contains(m.config.Host, ",") || port == 0 {
-		host = m.config.Host
-	} else {
-		host = fmt.Sprintf("%s:%d", m.config.Host, port)
-	}
-
-	var connectionString string
-	if m.config.User != "" && m.config.Password != "" {
-		if srv {
-			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
-				scheme,
-				m.config.User,
-				m.config.Password,
-				host,
-				m.config.Name,
-			)
-		} else {
-			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
-				scheme,
-				m.config.User,
-				m.config.Password,
-				host,
-				m.config.Name,
-			)
-		}
-	} else {
-		connectionString = fmt.Sprintf("%s://%s/%s",
-			scheme,
-			host,
-			m.config.Name,
-		)
-	}
+	connectionString := m.buildConnectionString()
 
 	// Add migration collection parameter
 	connectionString += fmt.Sprintf("?x-migrations-collection=%s", collectionName)
@@ -585,6 +469,73 @@ func (m *MongoDatabase) StartMigration(service string, command string, dir strin
 	}
 
 	return nil
+}
+
+func (m *MongoDatabase) buildConnectionString() string {
+	driver := m.config.Driver
+	scheme := m.config.Scheme
+	if scheme == "" {
+		scheme = driver
+	}
+
+	port := m.config.Port
+	srv := false
+	if strings.Contains(scheme, "+srv") {
+		srv = true
+		if port == 27017 {
+			port = 0
+		}
+	}
+
+	// Build connection string with authentication
+	authSource := m.config.Name
+	if authSource == "" {
+		authSource = "admin"
+	}
+
+	var host string
+	if strings.Contains(m.config.Host, ",") || port == 0 {
+		host = m.config.Host
+	} else {
+		host = fmt.Sprintf("%s:%d", m.config.Host, port)
+	}
+
+	var connectionString string
+	if m.config.User != "" && m.config.Password != "" {
+		if srv {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/%s",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+				m.config.Name,
+			)
+		} else {
+			connectionString = fmt.Sprintf("%s://%s:%s@%s/",
+				scheme,
+				m.config.User,
+				m.config.Password,
+				host,
+			)
+		}
+	} else {
+		connectionString = fmt.Sprintf("%s://%s/",
+			scheme,
+			host,
+		)
+	}
+
+	if len(m.config.Attributes) > 0 {
+		queryParams := []string{}
+		for key, value := range m.config.Attributes {
+			queryParams = append(queryParams, fmt.Sprintf("%s=%s", key, url.QueryEscape(value)))
+		}
+		if len(queryParams) > 0 {
+			connectionString += "?" + strings.Join(queryParams, "&")
+		}
+	}
+
+	return connectionString
 }
 
 func buildWhereClause(scr []port.DbExpression, dst *bson.M) {
