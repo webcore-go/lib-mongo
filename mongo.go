@@ -3,7 +3,6 @@ package mongo
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 
@@ -371,7 +370,7 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 		connectionString,
 	)
 	if err != nil {
-		log.Fatalf("Failed to create migration instance: %v", err)
+		logger.Error("Failed to create migration instance", "error", err)
 		return err
 	}
 	defer migrations.Close()
@@ -380,7 +379,7 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 	switch command {
 	case "up":
 		if err := migrations.Up(); err != nil && err != migrate.ErrNoChange {
-			log.Fatalf("Failed to run migrations up: %v", err)
+			logger.Error("Failed to run migrations up", "error", err)
 			return err
 		}
 		if err == migrate.ErrNoChange {
@@ -394,18 +393,18 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 		if len(args) > 0 {
 			_, err := fmt.Sscanf(args[0], "%d", &version)
 			if err != nil {
-				log.Fatalf("Invalid version number: %v", err)
+				logger.Error("Invalid version number", "error", err)
 				return err
 			}
 			if err := migrations.Migrate(version); err != nil {
-				log.Fatalf("Failed to run migrations down to version %d: %v", version, err)
+				logger.Error("Failed to run migrations down to", "version", version, "error", err)
 				return err
 			}
 			logger.Info(fmt.Sprintf("MongoDB migrations down to version %d completed successfully", version))
 		} else {
 			// Rollback one migration
 			if err := migrations.Steps(-1); err != nil && err != migrate.ErrNoChange {
-				log.Fatalf("Failed to run migrations down: %v", err)
+				logger.Error("Failed to run migrations down", "error", err)
 				return err
 			}
 			if err == migrate.ErrNoChange {
@@ -418,7 +417,7 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 		// Get migration version
 		version, dirty, err := migrations.Version()
 		if err != nil && err != migrate.ErrNilVersion {
-			log.Fatalf("Failed to get migration status: %v", err)
+			logger.Error("Failed to get migration status", "error", err)
 			return err
 		}
 
@@ -438,7 +437,7 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 	case "version":
 		version, dirty, err := migrations.Version()
 		if err != nil && err != migrate.ErrNilVersion {
-			log.Fatalf("Failed to get migration version: %v", err)
+			logger.Error("Failed to get migration version", "error", err)
 			return err
 		}
 
@@ -449,22 +448,22 @@ func (m *MongoDatabase) StartMigration(ctx context.Context, service string, comm
 		}
 	case "force":
 		if len(args) < 1 {
-			log.Fatal("Usage: force <version>")
+			logger.Error("Usage: force <version>")
 			return fmt.Errorf("version is required")
 		}
 		var version int
 		_, err := fmt.Sscanf(args[0], "%d", &version)
 		if err != nil {
-			log.Fatalf("Invalid version number: %v", err)
+			logger.Error("Invalid version number", "error", err)
 			return err
 		}
 		if err := migrations.Force(version); err != nil {
-			log.Fatalf("Failed to force migration version: %v", err)
+			logger.Error("Failed to force migration version", "error", err)
 			return err
 		}
 		logger.Info(fmt.Sprintf("Migration version forced to %d", version))
 	default:
-		log.Fatalf("Unknown migration command: %s. Available commands: up, down, status, version, force", command)
+		logger.Error("Unknown migration command. Available commands: up, down, status, version, force", "command", command)
 		return fmt.Errorf("unknown migration command: %s", command)
 	}
 

@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.18.3
-	github.com/webcore-go/webcore v0.0.15
+	github.com/webcore-go/webcore v0.0.17
 	go.mongodb.org/mongo-driver v1.17.9
 )
 
@@ -15,7 +15,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/gofiber/fiber/v2 v2.52.11 // indirect
+	github.com/gofiber/fiber/v2 v2.52.12 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
